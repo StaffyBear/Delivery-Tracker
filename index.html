@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0f6f4f" />
+  <title>Tracker Starter</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+</head>
+
+<body>
+
+  <!-- ================= AUTH ================= -->
+  <section id="authView" class="card stack">
+    <h1 class="page-title">Tracker Starter</h1>
+    <p class="muted center">Sign in to sync across devices.</p>
+
+    <div class="stack">
+      <label for="authEmail">Email</label>
+      <input id="authEmail" inputmode="email" autocomplete="email" placeholder="you@example.com" />
+
+      <label for="authPassword">Password</label>
+      <input id="authPassword" type="password" autocomplete="current-password" placeholder="••••••••" />
+
+      <div class="row">
+        <button id="btnSignIn">Sign in</button>
+        <button id="btnSignUp" class="secondary">Create account</button>
+      </div>
+
+      <button id="btnResetPassword" class="secondary">Send password reset email</button>
+
+      <div id="authStatus" class="muted center"></div>
+    </div>
+  </section>
+
+  <!-- ================= MAIN MENU ================= -->
+  <section id="menuView" class="card stack hidden">
+    <h1 class="page-title">Tracker Starter</h1>
+    <p class="muted center" id="whoAmI"></p>
+
+    <div class="menuGrid">
+      <button id="goDelivery" class="menuTile">Delivery<br/>Rounds</button>
+      <button id="goWorkout" class="menuTile">Workout</button>
+      <button id="goSettings" class="menuTile secondary">Settings</button>
+    </div>
+  </section>
+
+  <!-- ================= DELIVERY ROUNDS ================= -->
+  <section id="deliveryView" class="card stack hidden">
+    <h1 class="page-title">Delivery Rounds</h1>
+
+    <div class="dayBar">
+      <div class="dayBarLeft">
+        <button id="deliveryPrev" class="secondary miniBtn">◀</button>
+        <button id="deliveryNext" class="secondary miniBtn">▶</button>
+        <input id="deliveryDatePicker" class="datePick" type="date" />
+      </div>
+      <button id="deliveryBack" class="secondary miniBtn">Main Menu</button>
+    </div>
+
+    <div class="stack">
+      <div class="row3">
+        <div class="stack">
+          <label for="deliveryStartMiles">Start mileage</label>
+          <input id="deliveryStartMiles" inputmode="decimal" placeholder="e.g. 10234.5" />
+        </div>
+        <div class="stack">
+          <label for="deliveryEndMiles">End mileage</label>
+          <input id="deliveryEndMiles" inputmode="decimal" placeholder="e.g. 10310.2" />
+        </div>
+        <div class="stack">
+          <label>Total miles</label>
+          <input id="deliveryTotalMiles" disabled />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="stack">
+          <label for="deliveryDelivered">Parcels delivered</label>
+          <input id="deliveryDelivered" inputmode="numeric" placeholder="e.g. 87" />
+        </div>
+        <div class="stack">
+          <label for="deliveryCollected">Parcels collected</label>
+          <input id="deliveryCollected" inputmode="numeric" placeholder="e.g. 14" />
+        </div>
+      </div>
+
+      <label for="deliveryNotes">Notes (optional)</label>
+      <textarea id="deliveryNotes" placeholder="Anything worth noting..."></textarea>
+
+      <div class="row">
+        <button id="btnSaveDelivery">Save round</button>
+        <button id="btnClearDeliveryForm" class="secondary">Clear form</button>
+      </div>
+
+      <h3 class="sectionTitle">Saved rounds</h3>
+      <ul id="deliveryList"></ul>
+      <div class="muted" id="deliveryEmptyMsg"></div>
+    </div>
+  </section>
+
+  <!-- ================= WORKOUT ================= -->
+  <section id="workoutView" class="card stack hidden">
+    <h1 class="page-title">Workout</h1>
+
+    <div class="dayBar">
+      <div class="dayBarLeft">
+        <button id="workoutPrev" class="secondary miniBtn">◀</button>
+        <button id="workoutNext" class="secondary miniBtn">▶</button>
+        <input id="workoutDatePicker" class="datePick" type="date" />
+      </div>
+      <button id="workoutBack" class="secondary miniBtn">Main Menu</button>
+    </div>
+
+    <div class="stack">
+      <div class="row">
+        <button id="btnWorkoutStart">Start session</button>
+        <button id="btnWorkoutEnd" class="secondary">End session</button>
+      </div>
+
+      <div class="row3">
+        <div class="stack">
+          <label for="workoutStartTime">Start time</label>
+          <input id="workoutStartTime" type="time" />
+        </div>
+        <div class="stack">
+          <label for="workoutEndTime">End time</label>
+          <input id="workoutEndTime" type="time" />
+        </div>
+        <div class="stack">
+          <label for="workoutUnits">Units</label>
+          <select id="workoutUnits">
+            <option value="kg">kg</option>
+            <option value="lb">lb</option>
+          </select>
+        </div>
+      </div>
+
+      <h3 class="sectionTitle">Add exercise</h3>
+
+      <div class="row3">
+        <div class="stack">
+          <label for="exerciseSelect">Exercise</label>
+          <select id="exerciseSelect"></select>
+        </div>
+        <div class="stack">
+          <label for="newExerciseName">New exercise</label>
+          <input id="newExerciseName" placeholder="e.g. Bench Press" />
+        </div>
+        <div class="stack">
+          <label>&nbsp;</label>
+          <button id="btnAddExercise" class="secondary">Add</button>
+        </div>
+      </div>
+
+      <div class="row3">
+        <div class="stack">
+          <label for="setNumber">Set</label>
+          <select id="setNumber"></select>
+        </div>
+        <div class="stack">
+          <label for="reps">Reps</label>
+          <input id="reps" inputmode="numeric" placeholder="e.g. 8" />
+        </div>
+        <div class="stack">
+          <label for="weight">Weight</label>
+          <input id="weight" inputmode="decimal" placeholder="e.g. 60" />
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="btnAddSet">Add set</button>
+        <button id="btnClearWorkoutForm" class="secondary">Clear set inputs</button>
+      </div>
+
+      <h3 class="sectionTitle">Current session sets</h3>
+      <ul id="workoutSetList"></ul>
+      <div class="muted" id="workoutSetEmptyMsg"></div>
+
+      <div class="row">
+        <button id="btnSaveWorkoutSession">Save session</button>
+        <button id="btnDiscardWorkoutSession" class="secondary">Discard session</button>
+      </div>
+
+      <h3 class="sectionTitle">Saved sessions</h3>
+      <ul id="workoutSessionList"></ul>
+      <div class="muted" id="workoutEmptyMsg"></div>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section id="settingsView" class="card stack hidden">
+    <h1 class="page-title">Settings</h1>
+
+    <div class="row">
+      <button id="btnExportData" class="secondary">Export JSON</button>
+      <button id="btnRefreshCloud" class="secondary">Refresh from cloud</button>
+    </div>
+
+    <div class="dangerBox stack">
+      <h3 class="dangerTitle">Account</h3>
+      <p class="muted">Signed in as <span id="settingsEmail"></span></p>
+      <button id="btnSignOut" class="secondary">Sign out</button>
+    </div>
+
+    <button id="settingsBack" class="secondary">Main Menu</button>
+  </section>
+
+  <script type="module" src="app.js"></script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(console.error);
+      });
+    }
+  </script>
+
+</body>
+</html>
