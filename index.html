@@ -15,31 +15,51 @@
 
   <!-- ================= AUTH ================= -->
   <section id="authView" class="card stack">
-    <h1 class="page-title">Tracker Starter</h1>
-    <p class="muted center">Sign in to sync across devices.</p>
+    <h1 class="page-title">Login</h1>
+
+    <div class="logoBox">
+      <img src="./icons/icon-512.png" alt="Delivery Tracker logo" />
+    </div>
 
     <div class="stack">
       <label for="authEmail">Email</label>
-      <input id="authEmail" inputmode="email" autocomplete="email" placeholder="you@example.com" />
+      <input id="email" type="email" placeholder="Email" autocomplete="email" />
 
-      <label for="authPassword">Password</label>
-      <input id="authPassword" type="password" autocomplete="current-password" placeholder="••••••••" />
+       <label for="password">Password</label>
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
 
-      <div class="row">
-        <button id="btnSignIn">Sign in</button>
-        <button id="btnSignUp" class="secondary">Create account</button>
+      <label for="inviteCode">Invite code (required to register)</label>
+      <input id="inviteCode" type="text" placeholder="Invite Code" inputmode="numeric" />
+
+      <div class="authRow">
+        <button id="btnLogin">Login</button>
+        <button id="btnRegister" class="secondary">Register</button>
+        <button id="btnForgot" class="secondary">Forgotten Password</button>
       </div>
 
-      <button id="btnResetPassword" class="secondary">Send password reset email</button>
-
-      <div id="authStatus" class="muted center"></div>
+    <div id="authMsg" class="muted"></div>
     </div>
   </section>
 
+  <!-- ================= PASSWORD RESET ================= -->
+  <section id="resetView" class="card stack hidden">
+    <h1 class="page-title">Reset Password</h1>
+
+    <label for="newPassword">New password</label>
+    <input id="newPassword" type="password" placeholder="New password" />
+
+    <label for="newPassword2">Confirm new password</label>
+    <input id="newPassword2" type="password" placeholder="Confirm new password" />
+
+    <button id="btnSetNewPassword">Set new password</button>
+    <div id="resetMsg" class="muted"></div>
+  </section>
+
+  
+
   <!-- ================= MAIN MENU ================= -->
   <section id="menuView" class="card stack hidden">
-    <h1 class="page-title">Tracker Starter</h1>
-    <p class="muted center" id="whoAmI"></p>
+    <h1 class="page-title">Main Menu</h1>
 
     <div class="menuGrid">
       <button id="goMileage" class="menuTile">Mileage<br/>Rounds</button>
@@ -49,55 +69,54 @@
     </div>
   </section>
 
-  <!-- ================= DELIVERY ROUNDS ================= -->
-  <section id="deliveryView" class="card stack hidden">
+  <!-- ================= MILEAGE MENU ================= -->
+  <section id="mileageView" class="card stack hidden">
     <h1 class="page-title">Delivery Rounds</h1>
 
     <div class="dayBar">
       <div class="dayBarLeft">
-        <button id="deliveryPrev" class="secondary miniBtn">◀</button>
-        <button id="deliveryNext" class="secondary miniBtn">▶</button>
-        <input id="deliveryDatePicker" class="datePick" type="date" />
+        <button id="mileagePrev" class="secondary miniBtn">◀</button>
+        <button id="mileageNext" class="secondary miniBtn">▶</button>
+        <input id="mileageDatePicker" class="datePick" type="date" />
       </div>
-      <button id="deliveryBack" class="secondary miniBtn">Main Menu</button>
+      <button id="mileageBack" class="secondary miniBtn">Main Menu</button>
     </div>
 
     <div class="stack">
       <div class="row3">
         <div class="stack">
-          <label for="deliveryStartMiles">Start mileage</label>
-          <input id="deliveryStartMiles" inputmode="decimal" placeholder="e.g. 10234.5" />
+          <label for="mileageStartMiles">Start mileage</label>
+          <input id="mileageStartMiles" inputmode="decimal" placeholder="e.g. 10234.5" />
         </div>
         <div class="stack">
-          <label for="deliveryEndMiles">End mileage</label>
-          <input id="deliveryEndMiles" inputmode="decimal" placeholder="e.g. 10310.2" />
+          <label for="mileageEndMiles">End mileage</label>
+          <input id="mileageEndMiles" inputmode="decimal" placeholder="e.g. 10310.2" />
         </div>
         <div class="stack">
           <label>Total miles</label>
-          <input id="deliveryTotalMiles" disabled />
+          <input id="mileageTotalMiles" disabled />
         </div>
       </div>
 
       <div class="row">
         <div class="stack">
-          <label for="deliveryDelivered">Parcels delivered</label>
-          <input id="deliveryDelivered" inputmode="numeric" placeholder="e.g. 87" />
+          <label for="mileageDelivered">Parcels delivered</label>
+          <input id="mileageDelivered" inputmode="numeric" placeholder="e.g. 87" />
         </div>
         <div class="stack">
-          <label for="deliveryCollected">Parcels collected</label>
-          <input id="deliveryCollected" inputmode="numeric" placeholder="e.g. 14" />
+          <label for="mileageCollected">Parcels collected</label>
+          <input id="mileageCollected" inputmode="numeric" placeholder="e.g. 14" />
         </div>
       </div>
 
-      <label for="deliveryNotes">Notes (optional)</label>
-      <textarea id="deliveryNotes" placeholder="Anything worth noting..."></textarea>
+      <label for="mileageNotes">Notes (optional)</label>
+      <textarea id="mileageNotes" placeholder="Anything worth noting..."></textarea>
 
       <div class="row">
-        <button id="btnSaveDelivery">Save round</button>
-        <button id="btnClearDeliveryForm" class="secondary">Clear form</button>
+        <button id="btnSaveDelivery">Save</button>
       </div>
 
-      <h3 class="sectionTitle">Saved rounds</h3>
+      <h3 class="sectionTitle">Saved Details</h3>
       <ul id="deliveryList"></ul>
       <div class="muted" id="deliveryEmptyMsg"></div>
     </div>
