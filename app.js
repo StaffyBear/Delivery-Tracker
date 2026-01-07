@@ -4,7 +4,7 @@
  **************************************************/
 
 // ✅ Fill these in:
-const SITE_URL = "https://staffybear.github.io/Delivery-Tracker/"; // e.g. https://yourname.github.io/delivery-tracker/
+const SITE_URL = "https://staffybear.github.io/Delivery-Tracker/";
 const SUPABASE_URL = "https://qntswiybgqijbbhpzpas.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_JW0SqP8JbZFsgVfpPevHrg__FeyrIgq";
 
@@ -14,7 +14,8 @@ const INVITE_CODE_REQUIRED = "1006";
 // Local storage keys
 const LS = { activeVehicleId: "dt_activeVehicleId_v1" };
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ✅ IMPORTANT: use SUPABASE_ANON_KEY here
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
 
 const VIEWS = ["authView", "resetView", "menuView", "vehiclesView", "mileageView"];
