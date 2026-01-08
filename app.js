@@ -1,222 +1,715 @@
-:root{
-  --bg: #1FA8A8;
-  --bg2:#168C8C;
-  --text: #0b2f2f;
-  --muted: #6B8F8F;
-  --border: rgba(15, 55, 55, 0.14);
-  --primary: #1C7F7F;
-  --primary2:#166f6f;
-  --secondary: #CFEFED;
-  --mint: #8FE3CF;
-  --danger:#D96C6C;
-  --shadow: 0 12px 26px rgba(0,0,0,.18);
+/**************************************************
+ * Working Hours Tracker – app.js
+ * GitHub Pages friendly (NO import/export)
+ * Supabase: Auth + Companies + Shifts (+ optional photos)
+ **************************************************/
+
+// ✅ Fill these in:
+const SITE_URL = "PASTE_YOUR_GITHUB_PAGES_URL_HERE"; // e.g. https://staffybear.github.io/Working-Hours-Tracker/
+const SUPABASE_URL = "PASTE_YOUR_SUPABASE_URL_HERE";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY_HERE";
+
+// Optional: invite code gate for registration
+const INVITE_CODE_REQUIRED = "1006";
+
+// Storage bucket for photos (create this in Supabase Storage)
+const PHOTO_BUCKET = "shift-photos";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = (id) => document.getElementById(id);
+
+const VIEWS = ["authView","resetView","menuView","companiesView","monthlyView","companyView"];
+const LS = { lastCompanyId: "wht_lastCompanyId_v1" };
+
+let monthCursor = startOfMonth(new Date());
+let selectedCompanyId = null;
+let selectedCompany = null;
+let selectedDateStr = yyyyMmDd(new Date());
+
+/* ---------------- helpers ---------------- */
+function pad2(n){ return String(n).padStart(2,"0"); }
+function yyyyMmDd(d=new Date()){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function todayStr(){ return yyyyMmDd(new Date()); }
+
+function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1, 12,0,0,0); }
+function addMonths(d, delta){ const x=new Date(d); x.setMonth(x.getMonth()+delta); return startOfMonth(x); }
+function monthLabel(d){ return d.toLocaleString(undefined, { month:"long", year:"numeric" }); }
+function monthRange(d){
+  const start = new Date(d.getFullYear(), d.getMonth(), 1, 0,0,0,0);
+  const end = new Date(d.getFullYear(), d.getMonth()+1, 1, 0,0,0,0);
+  return { start, end };
+}
+function parseDateStr(dateStr){ const [y,m,dd]=dateStr.split("-").map(Number); return new Date(y,m-1,dd,12,0,0,0); }
+function addDays(dateStr, delta){ const dt=parseDateStr(dateStr); dt.setDate(dt.getDate()+delta); return yyyyMmDd(dt); }
+
+function toLocalDateTimeInputValue(date){
+  const d = new Date(date);
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+function fromLocalDateTimeInputValue(v){
+  if (!v) return null;
+  const [datePart, timePart] = v.split("T");
+  const [y,m,dd] = datePart.split("-").map(Number);
+  const [hh,mm] = timePart.split(":").map(Number);
+  return new Date(y, m-1, dd, hh, mm, 0, 0);
+}
+function hoursBetween(start, end){
+  if (!start || !end) return null;
+  const ms = end - start;
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return ms / 3600000;
+}
+function numberOrNull(v){
+  const n = Number(String(v ?? "").trim());
+  return Number.isFinite(n) ? n : null;
 }
 
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
-body{
-  margin:0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background:
-    radial-gradient(1200px 800px at 20% -10%, rgba(143,227,207,.55), transparent 60%),
-    radial-gradient(1000px 600px at 90% 0%, rgba(127,166,217,.25), transparent 55%),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
-  color: var(--text);
-  display:flex;
-  align-items:flex-start;
-  justify-content:center;
-  padding:24px 14px 40px;
+function showView(id, push=true){
+  for (const v of VIEWS){
+    const el = $(v);
+    if (el) el.classList.toggle("hidden", v !== id);
+  }
+  if (push) history.pushState({ view:id }, "", "#"+id);
 }
-.hidden{ display:none !important; }
+window.addEventListener("popstate", (e) => {
+  const view = e.state?.view || (location.hash ? location.hash.replace("#","") : "menuView");
+  if (VIEWS.includes(view)) showView(view, false);
+});
 
-.card{
-  width:min(760px, 100%);
-  background: rgba(255,255,255,.92);
-  border: 1px solid rgba(255,255,255,.35);
-  border-radius: 22px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(8px);
-  padding: 18px;
+function setText(id, msg){ const el=$(id); if (el) el.textContent = msg || ""; }
+
+async function requireUser(){
+  const { data, error } = await sb.auth.getUser();
+  if (error || !data?.user) throw new Error("Not logged in.");
+  return data.user;
 }
 
-.stack{ display:flex; flex-direction:column; gap:12px; }
-
-.page-title{
-  margin: 6px 0 4px;
-  text-align:center;
-  font-size: clamp(22px, 3.2vw, 32px);
-  letter-spacing: .4px;
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
-.logoBox{ display:flex; justify-content:center; align-items:center; }
-.logoBox img{
-  width: min(520px, 100%);
-  border-radius: 14px;
-  border: 1px solid rgba(0,0,0,.06);
+/* ---------------- auth ---------------- */
+async function doRegister(){
+  try{
+    const email = ($("email").value || "").trim();
+    const password = $("password").value || "";
+    const invite = ($("inviteCode").value || "").trim();
+
+    if (!email || !password) return setText("authMsg","Enter BOTH email and password.");
+    if (invite !== INVITE_CODE_REQUIRED) return setText("authMsg","Invite code required for registration.");
+
+    setText("authMsg","Registering…");
+    const res = await sb.auth.signUp({ email, password, options:{ emailRedirectTo: SITE_URL }});
+    if (res.error) throw res.error;
+    setText("authMsg","Registered ✅ If email confirmation is enabled, confirm then login.");
+  }catch(err){
+    setText("authMsg", err.message || String(err));
+  }
+}
+async function doLogin(){
+  try{
+    const email = ($("email").value || "").trim();
+    const password = $("password").value || "";
+    if (!email || !password) return setText("authMsg","Enter BOTH email and password.");
+
+    setText("authMsg","Logging in…");
+    const res = await sb.auth.signInWithPassword({ email, password });
+    if (res.error) throw res.error;
+
+    setText("authMsg","");
+    await bootAfterLogin();
+  }catch(err){
+    setText("authMsg", err.message || String(err));
+  }
+}
+async function doForgotPassword(){
+  try{
+    const email = ($("email").value || "").trim();
+    if (!email) return setText("authMsg","Enter your email first.");
+
+    setText("authMsg","Sending reset email…");
+    const res = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL });
+    if (res.error) throw res.error;
+
+    setText("authMsg","Reset email sent ✅ Check inbox/spam.");
+  }catch(err){
+    setText("authMsg", err.message || String(err));
+  }
+}
+function isRecoveryLink(){ return (location.hash || "").includes("type=recovery"); }
+async function setNewPassword(){
+  try{
+    const p1 = $("newPassword").value || "";
+    const p2 = $("newPassword2").value || "";
+    if (!p1 || p1.length < 6) return setText("resetMsg","Password must be at least 6 characters.");
+    if (p1 !== p2) return setText("resetMsg","Passwords do not match.");
+
+    setText("resetMsg","Updating password…");
+    const res = await sb.auth.updateUser({ password: p1 });
+    if (res.error) throw res.error;
+
+    setText("resetMsg","Password updated ✅ Please login.");
+    history.replaceState(null, "", location.pathname + location.search);
+    await sb.auth.signOut();
+    showView("authView");
+  }catch(err){
+    setText("resetMsg", err.message || String(err));
+  }
+}
+async function doLogout(){
+  await sb.auth.signOut();
+  showView("authView");
 }
 
-label{ font-weight: 750; font-size: 14px; color: rgba(11,47,47,.9); }
-
-input, select, textarea{
-  width:100%;
-  border:1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px 12px;
-  font-size: 16px;
-  outline:none;
-  background: rgba(255,255,255,.96);
-}
-textarea{ min-height: 84px; resize: vertical; }
-
-input:focus, select:focus, textarea:focus{
-  border-color: rgba(28,127,127,.55);
-  box-shadow: 0 0 0 4px rgba(143,227,207,.35);
+/* ---------------- companies ---------------- */
+async function listCompanies(){
+  const user = await requireUser();
+  const res = await sb.from("companies")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending:true });
+  if (res.error) throw res.error;
+  return res.data || [];
 }
 
-button{
-  width:100%;
-  border:none;
-  border-radius: 16px;
-  padding: 12px 14px;
-  font-size: 15px;
-  font-weight: 850;
-  cursor:pointer;
-  background: var(--primary);
-  color:#fff;
+function companyConfigFromForm(){
+  return {
+    uses_mileage: $("cfgMileage").checked,
+    uses_parcels: $("cfgParcels").checked,
+    uses_stops: $("cfgStops").checked,
+    uses_pay: $("cfgPay").checked,
+    uses_photos: $("cfgPhotos").checked
+  };
 }
-button:hover{ background: var(--primary2); }
-button:disabled{ opacity:.55; cursor:not-allowed; }
-
-.secondary{
-  background: var(--secondary);
-  color: rgba(11,47,47,.9);
-  border: 1px solid rgba(11,47,47,.10);
-}
-.secondary:hover{ background: rgba(207,239,237,.82); }
-
-.dangerBtn{ background: var(--danger); color:#fff; }
-.dangerBtn:hover{ filter: brightness(.95); }
-
-.muted{ color: var(--muted); font-size:14px; text-align:center; }
-
-.row{ display:flex; gap:12px; }
-.row > *{ flex:1; }
-
-.row3{ display:flex; gap:12px; }
-.row3 > *{ flex:1; }
-
-@media (max-width:720px){ .row,.row3{ flex-direction:column; } }
-
-.authRow{ display:flex; gap:10px; }
-.authRow button{ flex:1; }
-@media (max-width:620px){ .authRow{ flex-direction:column; } }
-
-.checkRow{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-.checkRow input{ width:auto; }
-
-.dayBar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(11,47,47,.10);
-  border-radius: 16px;
-  background: rgba(255,255,255,.75);
-}
-.dayBarLeft{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-.miniBtn{
-  width:auto;
-  padding: 8px 12px;
-  border-radius: 999px;
-  font-weight: 900;
-}
-.datePick{
-  width:auto;
-  padding: 8px 10px;
-  border-radius: 999px;
+function setCompanyForm(c){
+  $("companyId").value = c?.id || "";
+  $("companyName").value = c?.name || "";
+  $("cfgMileage").checked = c?.uses_mileage ?? true;
+  $("cfgParcels").checked = c?.uses_parcels ?? true;
+  $("cfgStops").checked = c?.uses_stops ?? true;
+  $("cfgPay").checked = c?.uses_pay ?? true;
+  $("cfgPhotos").checked = c?.uses_photos ?? true;
 }
 
-.menuGrid{
-  display:grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 12px;
+async function saveCompany(){
+  try{
+    const user = await requireUser();
+    const id = ($("companyId").value || "").trim();
+    const name = ($("companyName").value || "").trim();
+    if (!name) return setText("companyMsg","Company name is required.");
+
+    setText("companyMsg","Saving…");
+    const cfg = companyConfigFromForm();
+
+    if (id){
+      const res = await sb.from("companies")
+        .update({ name, ...cfg })
+        .eq("id", id).eq("user_id", user.id);
+      if (res.error) throw res.error;
+    }else{
+      const res = await sb.from("companies")
+        .insert({ user_id: user.id, name, ...cfg });
+      if (res.error) throw res.error;
+    }
+
+    setCompanyForm(null);
+    await refreshCompaniesUI();
+    setText("companyMsg","Saved ✅");
+  }catch(err){
+    console.error(err);
+    setText("companyMsg", err.message || String(err));
+  }
 }
-@media (max-width:720px){ .menuGrid{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
-@media (max-width:480px){ .menuGrid{ grid-template-columns: 1fr; } }
-
-.menuTile{
-  height: 72px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  border-radius: 18px;
-  box-shadow: 0 10px 18px rgba(0,0,0,.10);
-}
-
-.sectionTitle{ margin: 4px 0 0; font-size:16px; font-weight:900; }
-
-ul{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
-li{
-  border: 1px solid rgba(11,47,47,.10);
-  background: rgba(255,255,255,.88);
-  border-radius: 14px;
-  padding: 10px 12px;
-  line-height: 1.3;
-}
-
-.badgeRow{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-}
-
-.badge{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(143,227,207,.35);
-  border: 1px solid rgba(28,127,127,.18);
-  font-weight: 850;
-  font-size: 13px;
+async function deleteCompany(id){
+  const user = await requireUser();
+  const res = await sb.from("companies").delete().eq("id", id).eq("user_id", user.id);
+  if (res.error) throw res.error;
 }
 
-.kpiGrid{
-  display:grid;
-  grid-template-columns: repeat(4, minmax(0,1fr));
-  gap: 10px;
-}
-@media (max-width:720px){ .kpiGrid{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
-.kpi{
-  border: 1px solid rgba(11,47,47,.10);
-  background: rgba(255,255,255,.82);
-  border-radius: 16px;
-  padding: 10px;
-  text-align:center;
-}
-.kpi .k{ font-size: 12px; color: var(--muted); font-weight: 800; }
-.kpi .v{ font-size: 18px; font-weight: 950; margin-top: 4px; }
+async function refreshCompaniesUI(){
+  const companies = await listCompanies();
 
-.photoThumb{
-  max-width: 140px;
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,.10);
+  // list
+  const ul = $("companyList");
+  ul.innerHTML = "";
+  if (!companies.length) setText("companyMsg","No companies yet. Add one above.");
+  else setText("companyMsg","");
+
+  for (const c of companies){
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <b>${escapeHtml(c.name)}</b>
+      <button class="secondary miniInlineBtn" data-edit="${c.id}" type="button">Edit</button>
+      <button class="secondary miniInlineBtn" data-del="${c.id}" type="button">Delete</button>
+    `;
+    ul.appendChild(li);
+  }
+
+  ul.querySelectorAll("[data-edit]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-edit");
+      const c = companies.find(x=>x.id===id);
+      if (!c) return;
+      setCompanyForm(c);
+      setText("companyMsg","Editing…");
+      window.scrollTo({ top:0, behavior:"smooth" });
+    });
+  });
+  ul.querySelectorAll("[data-del]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = btn.getAttribute("data-del");
+      const c = companies.find(x=>x.id===id);
+      if (!c) return;
+      if (!confirm(`Delete company "${c.name}"?\n\nIf it has shifts, deletion may be blocked (restrict).`)) return;
+      try{
+        await deleteCompany(id);
+        await refreshCompaniesUI();
+      }catch(err){
+        setText("companyMsg", err.message || String(err));
+      }
+    });
+  });
+
+  renderCompanyTiles(companies);
+
+  if (!companies.length) setText("menuMsg","Add a company (e.g. Evri) to get a tile.");
+  else setText("menuMsg","");
 }
 
-.miniInlineBtn{
-  margin-left:10px;
-  width:auto !important;
-  display:inline-block !important;
-  padding:0 12px !important;
-  height:34px !important;
-  border-radius:999px !important;
-  font-weight:900 !important;
-  vertical-align:middle;
+function renderCompanyTiles(companies){
+  const grid = $("menuGrid");
+
+  // remove old company tiles
+  [...grid.querySelectorAll("button[data-company]")].forEach(b=>b.remove());
+
+  for (const c of companies){
+    const btn = document.createElement("button");
+    btn.className = "menuTile secondary";
+    btn.textContent = c.name;
+    btn.setAttribute("data-company", c.id);
+    btn.addEventListener("click", ()=> openCompany(c.id));
+    grid.appendChild(btn);
+  }
 }
+
+/* ---------------- shifts ---------------- */
+async function fetchShift(companyId, dateStr){
+  const user = await requireUser();
+  const res = await sb.from("shifts")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("company_id", companyId)
+    .eq("work_date", dateStr)
+    .maybeSingle();
+  if (res.error && res.status !== 406) throw res.error;
+  return res.data || null;
+}
+
+async function upsertShift(companyId, dateStr, payload){
+  const user = await requireUser();
+  const row = { user_id:user.id, company_id:companyId, work_date:dateStr, ...payload };
+  const res = await sb.from("shifts").upsert([row], { onConflict:"user_id,company_id,work_date" });
+  if (res.error) throw res.error;
+}
+
+async function deleteShift(companyId, dateStr){
+  const user = await requireUser();
+  const res = await sb.from("shifts")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("company_id", companyId)
+    .eq("work_date", dateStr);
+  if (res.error) throw res.error;
+}
+
+async function listCompanyMonth(companyId, monthDate){
+  const user = await requireUser();
+  const { start, end } = monthRange(monthDate);
+  const res = await sb.from("shifts")
+    .select("work_date,start_time,end_time,total_mileage,estimated_pay")
+    .eq("user_id", user.id)
+    .eq("company_id", companyId)
+    .gte("start_time", start.toISOString())
+    .lt("start_time", end.toISOString())
+    .order("work_date", { ascending:false });
+  if (res.error) throw res.error;
+  return res.data || [];
+}
+
+/* ---------------- photos (optional) ---------------- */
+async function uploadPhoto(file, path){
+  if (!file) return null;
+  const user = await requireUser();
+  const fullPath = `${user.id}/${path}`;
+
+  const res = await sb.storage.from(PHOTO_BUCKET).upload(fullPath, file, {
+    cacheControl: "3600",
+    upsert: true,
+    contentType: file.type || "image/jpeg"
+  });
+  if (res.error) throw res.error;
+  return fullPath;
+}
+
+async function signedUrl(path){
+  if (!path) return null;
+  const res = await sb.storage.from(PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
+  if (res.error) throw res.error;
+  return res.data?.signedUrl || null;
+}
+
+/* ---------------- company page UI ---------------- */
+function applyCompanyConfig(c){
+  $("mileageBlock").classList.toggle("hidden", !c.uses_mileage);
+  $("parcelsStopsBlock").classList.toggle("hidden", !(c.uses_parcels || c.uses_stops));
+  $("payBlock").classList.toggle("hidden", !c.uses_pay);
+  $("photoBlock").classList.toggle("hidden", !(c.uses_mileage && c.uses_photos));
+
+  $("parcelsWrap").classList.toggle("hidden", !c.uses_parcels);
+  $("stopsWrap").classList.toggle("hidden", !c.uses_stops);
+
+  $("mileageBadgeWrap").classList.toggle("hidden", !c.uses_mileage);
+  $("payRateBadgeWrap").classList.toggle("hidden", !c.uses_pay);
+}
+
+function syncShiftDatePicker(){
+  $("shiftDatePicker").max = todayStr();
+  $("shiftDatePicker").value = selectedDateStr;
+  $("shiftNext").disabled = (selectedDateStr >= todayStr());
+}
+
+function calcMileage(){
+  const s = numberOrNull($("startMileage").value);
+  const e = numberOrNull($("endMileage").value);
+  if (s === null || e === null || e < s){
+    $("totalMileage").value = "";
+    return null;
+  }
+  const t = Number((e - s).toFixed(1));
+  $("totalMileage").value = String(t);
+  return t;
+}
+function calcHours(){
+  const st = fromLocalDateTimeInputValue($("startTime").value);
+  const et = fromLocalDateTimeInputValue($("endTime").value);
+  const h = hoursBetween(st, et);
+  return h ? Number(h.toFixed(2)) : null;
+}
+function calcPayPerHour(){
+  const h = calcHours();
+  const pay = numberOrNull($("estimatedPay").value);
+  if (h === null || pay === null || h <= 0) return null;
+  return Number((pay / h).toFixed(2));
+}
+function refreshBadges(){
+  const hours = calcHours();
+  $("hoursBadge").textContent = hours === null ? "—" : String(hours);
+
+  const mileage = calcMileage();
+  $("mileageBadge").textContent = mileage === null ? "—" : String(mileage);
+
+  const rate = calcPayPerHour();
+  $("payRateBadge").textContent = rate === null ? "—" : String(rate);
+
+  $("avgPayPerHour").value = rate === null ? "" : String(rate);
+}
+
+function clearShiftForm(){
+  $("startTime").value = "";
+  $("endTime").value = "";
+  $("startMileage").value = "";
+  $("endMileage").value = "";
+  $("totalMileage").value = "";
+  $("totalParcels").value = "";
+  $("totalStops").value = "";
+  $("estimatedPay").value = "";
+  $("avgPayPerHour").value = "";
+  $("notes").value = "";
+
+  $("startMileagePhoto").value = "";
+  $("endMileagePhoto").value = "";
+  $("startPhotoThumb").classList.add("hidden"); $("startPhotoThumb").src = "";
+  $("endPhotoThumb").classList.add("hidden"); $("endPhotoThumb").src = "";
+
+  refreshBadges();
+}
+
+async function loadShiftIntoForm(){
+  setText("shiftMsg","Loading…");
+  clearShiftForm();
+
+  const row = await fetchShift(selectedCompanyId, selectedDateStr);
+  if (!row){ setText("shiftMsg","No shift saved for this date yet."); return; }
+
+  if (row.start_time) $("startTime").value = toLocalDateTimeInputValue(new Date(row.start_time));
+  if (row.end_time) $("endTime").value = toLocalDateTimeInputValue(new Date(row.end_time));
+
+  $("startMileage").value = row.start_mileage ?? "";
+  $("endMileage").value = row.end_mileage ?? "";
+  $("totalMileage").value = row.total_mileage ?? "";
+
+  $("totalParcels").value = row.total_parcels ?? "";
+  $("totalStops").value = row.total_stops ?? "";
+
+  $("estimatedPay").value = row.estimated_pay ?? "";
+  $("notes").value = row.notes ?? "";
+
+  // thumbnails (won't block if storage not set)
+  try{
+    if (row.start_mileage_photo_path){
+      const url = await signedUrl(row.start_mileage_photo_path);
+      if (url){ $("startPhotoThumb").src = url; $("startPhotoThumb").classList.remove("hidden"); }
+    }
+    if (row.end_mileage_photo_path){
+      const url = await signedUrl(row.end_mileage_photo_path);
+      if (url){ $("endPhotoThumb").src = url; $("endPhotoThumb").classList.remove("hidden"); }
+    }
+  }catch(err){
+    console.warn("Photo preview unavailable:", err.message || err);
+  }
+
+  refreshBadges();
+  setText("shiftMsg","");
+}
+
+async function saveShift(){
+  try{
+    setText("shiftMsg","Saving…");
+    const startDt = fromLocalDateTimeInputValue($("startTime").value);
+    if (!startDt) return setText("shiftMsg","Start time is required. Use Start shift or set it manually.");
+
+    const endDt = fromLocalDateTimeInputValue($("endTime").value);
+
+    const start_mileage = numberOrNull($("startMileage").value);
+    const end_mileage = numberOrNull($("endMileage").value);
+    const total_mileage = calcMileage();
+
+    const total_parcels = numberOrNull($("totalParcels").value);
+    const total_stops = numberOrNull($("totalStops").value);
+    const estimated_pay = numberOrNull($("estimatedPay").value);
+    const notes = ($("notes").value || "").trim() || null;
+
+    let start_mileage_photo_path = null;
+    let end_mileage_photo_path = null;
+
+    if (selectedCompany.uses_mileage && selectedCompany.uses_photos){
+      const startFile = $("startMileagePhoto").files?.[0] || null;
+      const endFile = $("endMileagePhoto").files?.[0] || null;
+      if (startFile) start_mileage_photo_path = await uploadPhoto(startFile, `${selectedCompanyId}/${selectedDateStr}/start-${Date.now()}.jpg`);
+      if (endFile) end_mileage_photo_path = await uploadPhoto(endFile, `${selectedCompanyId}/${selectedDateStr}/end-${Date.now()}.jpg`);
+    }
+
+    const existing = await fetchShift(selectedCompanyId, selectedDateStr);
+
+    await upsertShift(selectedCompanyId, selectedDateStr, {
+      start_time: startDt.toISOString(),
+      end_time: endDt ? endDt.toISOString() : null,
+
+      start_mileage,
+      end_mileage,
+      total_mileage,
+
+      start_mileage_photo_path: start_mileage_photo_path ?? existing?.start_mileage_photo_path ?? null,
+      end_mileage_photo_path: end_mileage_photo_path ?? existing?.end_mileage_photo_path ?? null,
+
+      total_parcels,
+      total_stops,
+      estimated_pay,
+      notes
+    });
+
+    setText("shiftMsg","Saved ✅");
+    await loadShiftIntoForm();
+    await renderCompanyMonthList();
+  }catch(err){
+    console.error(err);
+    setText("shiftMsg", err.message || String(err));
+  }
+}
+
+function startShiftNow(){
+  $("startTime").value = toLocalDateTimeInputValue(new Date());
+  refreshBadges();
+  setText("shiftMsg","Start time set. Tap Save when ready.");
+}
+function endShiftNow(){
+  $("endTime").value = toLocalDateTimeInputValue(new Date());
+  refreshBadges();
+  setText("shiftMsg","End time set. Tap Save when ready.");
+}
+
+async function deleteDay(){
+  try{
+    if (!confirm("Delete saved shift for this date?")) return;
+    await deleteShift(selectedCompanyId, selectedDateStr);
+    clearShiftForm();
+    setText("shiftMsg","Deleted ✅");
+    await renderCompanyMonthList();
+  }catch(err){
+    setText("shiftMsg", err.message || String(err));
+  }
+}
+
+async function renderCompanyMonthList(){
+  const ul = $("companyMonthList");
+  ul.innerHTML = "";
+
+  const rows = await listCompanyMonth(selectedCompanyId, monthCursor);
+  if (!rows.length) return;
+
+  for (const r of rows){
+    const st = r.start_time ? new Date(r.start_time) : null;
+    const et = r.end_time ? new Date(r.end_time) : null;
+    const h = st && et ? hoursBetween(st, et) : null;
+    const hTxt = h ? `${h.toFixed(2)}h` : "—";
+    const miTxt = (r.total_mileage ?? null) !== null ? `${Number(r.total_mileage).toFixed(1)} mi` : "";
+    const payTxt = (r.estimated_pay ?? null) !== null ? `£${Number(r.estimated_pay).toFixed(2)}` : "";
+    const li = document.createElement("li");
+    li.innerHTML = `<b>${r.work_date}</b> • ${hTxt}${miTxt ? " • "+miTxt : ""}${payTxt ? " • "+payTxt : ""}`;
+    ul.appendChild(li);
+  }
+}
+
+async function openCompany(companyId){
+  const companies = await listCompanies();
+  const c = companies.find(x=>x.id===companyId);
+  if (!c) return;
+
+  selectedCompanyId = companyId;
+  selectedCompany = c;
+  localStorage.setItem(LS.lastCompanyId, companyId);
+
+  $("companyTitle").textContent = c.name;
+  applyCompanyConfig(c);
+
+  selectedDateStr = todayStr();
+  monthCursor = startOfMonth(new Date());
+
+  syncShiftDatePicker();
+  await loadShiftIntoForm();
+  await renderCompanyMonthList();
+  showView("companyView");
+}
+
+/* ---------------- monthly summary ---------------- */
+async function listShiftsInMonth(monthDate){
+  const user = await requireUser();
+  const { start, end } = monthRange(monthDate);
+  const res = await sb.from("shifts")
+    .select("work_date,start_time,end_time,total_mileage,estimated_pay,companies(name)")
+    .eq("user_id", user.id)
+    .gte("start_time", start.toISOString())
+    .lt("start_time", end.toISOString())
+    .order("start_time", { ascending:false });
+  if (res.error) throw res.error;
+  return res.data || [];
+}
+
+async function renderMonthly(){
+  $("monthLabel").textContent = monthLabel(monthCursor);
+  $("monthNext").disabled = (monthCursor >= startOfMonth(new Date()));
+
+  setText("monthMsg","Loading…");
+  const ul = $("monthShiftList");
+  ul.innerHTML = "";
+
+  const rows = await listShiftsInMonth(monthCursor);
+  if (!rows.length){
+    setText("monthMsg","No shifts in this month yet.");
+    setText("kpiShifts","0"); setText("kpiHours","0"); setText("kpiMileage","0"); setText("kpiPay","0");
+    return;
+  }
+
+  let totalHours = 0, totalMileage = 0, totalPay = 0, shiftsCount = 0;
+
+  for (const r of rows){
+    shiftsCount += 1;
+    const st = r.start_time ? new Date(r.start_time) : null;
+    const et = r.end_time ? new Date(r.end_time) : null;
+    const h = st && et ? hoursBetween(st, et) : 0;
+    totalHours += (h || 0);
+    totalMileage += Number(r.total_mileage || 0);
+    totalPay += Number(r.estimated_pay || 0);
+
+    const cname = r.companies?.name || "Company";
+    const li = document.createElement("li");
+    li.innerHTML = `<b>${r.work_date}</b> • ${escapeHtml(cname)} • ${(h||0).toFixed(2)}h` +
+      (r.total_mileage ? ` • ${Number(r.total_mileage).toFixed(1)} mi` : "") +
+      (r.estimated_pay ? ` • £${Number(r.estimated_pay).toFixed(2)}` : "");
+    ul.appendChild(li);
+  }
+
+  setText("kpiShifts", String(shiftsCount));
+  setText("kpiHours", totalHours.toFixed(2));
+  setText("kpiMileage", totalMileage.toFixed(1));
+  setText("kpiPay", totalPay.toFixed(2));
+  setText("monthMsg","");
+}
+
+/* ---------------- init ---------------- */
+async function bootAfterLogin(){
+  await refreshCompaniesUI();
+  showView("menuView");
+}
+
+async function init(){
+  // auth
+  $("btnLogin").onclick = doLogin;
+  $("btnRegister").onclick = doRegister;
+  $("btnForgot").onclick = doForgotPassword;
+  $("btnSetNewPassword").onclick = setNewPassword;
+
+  // menu
+  $("btnLogout").onclick = doLogout;
+  $("btnCompanies").onclick = async ()=>{ await refreshCompaniesUI(); showView("companiesView"); };
+  $("goMonthly").onclick = async ()=>{ await renderMonthly(); showView("monthlyView"); };
+
+  // companies
+  $("companiesBack").onclick = ()=> showView("menuView");
+  $("btnSaveCompany").onclick = saveCompany;
+  $("btnClearCompany").onclick = ()=>{ setCompanyForm(null); setText("companyMsg",""); };
+
+  // monthly
+  $("monthlyBack").onclick = ()=> showView("menuView");
+  $("monthPrev").onclick = async ()=>{ monthCursor = addMonths(monthCursor,-1); await renderMonthly(); };
+  $("monthNext").onclick = async ()=>{ monthCursor = addMonths(monthCursor,+1); await renderMonthly(); };
+
+  // company
+  $("companyBack").onclick = ()=> showView("menuView");
+  $("btnStartShift").onclick = startShiftNow;
+  $("btnEndShift").onclick = endShiftNow;
+  $("btnSaveShift").onclick = saveShift;
+  $("btnDeleteShift").onclick = deleteDay;
+
+  $("shiftPrev").onclick = async ()=>{ selectedDateStr = addDays(selectedDateStr,-1); syncShiftDatePicker(); await loadShiftIntoForm(); };
+  $("shiftNext").onclick = async ()=>{ selectedDateStr = addDays(selectedDateStr,+1); syncShiftDatePicker(); await loadShiftIntoForm(); };
+  $("shiftDatePicker").onchange = async (e)=>{ selectedDateStr = e.target.value; syncShiftDatePicker(); await loadShiftIntoForm(); };
+
+  ["startTime","endTime","startMileage","endMileage","estimatedPay"].forEach(id=>{
+    const el=$(id); if (el) el.addEventListener("input", refreshBadges);
+  });
+
+  $("startMileagePhoto").addEventListener("change", ()=>{
+    const f=$("startMileagePhoto").files?.[0]; if (!f) return;
+    $("startPhotoThumb").src = URL.createObjectURL(f);
+    $("startPhotoThumb").classList.remove("hidden");
+  });
+  $("endMileagePhoto").addEventListener("change", ()=>{
+    const f=$("endMileagePhoto").files?.[0]; if (!f) return;
+    $("endPhotoThumb").src = URL.createObjectURL(f);
+    $("endPhotoThumb").classList.remove("hidden");
+  });
+
+  if (isRecoveryLink()){ showView("resetView", false); return; }
+
+  const sess = await sb.auth.getSession();
+  if (sess.data?.session) await bootAfterLogin();
+  else showView("authView", false);
+}
+
+init().catch((e)=>{ console.error(e); alert(e.message || String(e)); });
