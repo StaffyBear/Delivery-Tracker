@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#0f6f4f" />
-  <title>Delivery Tracker</title>
+  <meta name="theme-color" content="#1FA8A8" />
+  <title>Working Hours Tracker</title>
 
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
@@ -20,7 +20,7 @@
     <h1 class="page-title">Login</h1>
 
     <div class="logoBox">
-      <img src="./icons/icon-512.png" alt="Delivery Tracker logo" />
+      <img src="./icons/icon-512.png" alt="App logo" />
     </div>
 
     <div class="stack">
@@ -59,123 +59,131 @@
 
   <!-- ================= MAIN MENU ================= -->
   <section id="menuView" class="card stack hidden">
-    <h1 class="page-title">Delivery Tracker</h1>
-
-    <div class="card today stack" style="margin-bottom: 0;">
-      <div class="row">
-        <div class="stack">
-          <label for="activeVehicleSelect">Active vehicle</label>
-          <select id="activeVehicleSelect"></select>
-        </div>
-        <div class="stack">
-          <label>&nbsp;</label>
-          <button id="btnManageVehicles" class="secondary">Vehicles</button>
-        </div>
-      </div>
-      <div id="dueWarnings" class="muted"></div>
-    </div>
-
-    <div class="menuGrid">
-      <button id="goMileage" class="menuTile">Mileage</button>
-      <button id="goVehicles" class="menuTile secondary">Vehicles</button>
-      <button id="btnLogout" class="menuTile dangerBtn">Log Out</button>
-    </div>
-  </section>
-
-  <!-- ================= VEHICLES ================= -->
-  <section id="vehiclesView" class="card stack hidden">
-    <h1 class="page-title">Vehicles</h1>
-
-    <div class="dayBar">
-      <div class="dayBarLeft">
-        <strong class="dateText">Manage</strong>
-      </div>
-      <button id="vehiclesBack" class="secondary miniBtn">Main Menu</button>
-    </div>
-
-    <div class="stack">
-      <input id="vehicleId" type="hidden" />
-
-      <label for="registration">Registration</label>
-      <input id="registration" placeholder="e.g. AB12 CDE" />
-
-      <div class="row">
-        <div class="stack">
-          <label for="motDue">MOT due</label>
-          <input id="motDue" type="date" />
-        </div>
-        <div class="stack">
-          <label for="taxDue">Tax due</label>
-          <input id="taxDue" type="date" />
-        </div>
-      </div>
-
-      <div class="row">
-        <button id="btnSaveVehicle">Save vehicle</button>
-        <button id="btnClearVehicle" class="secondary">Clear</button>
-      </div>
-
-      <h3 class="page-title" style="margin-top:10px;">Your vehicles</h3>
-      <ul id="vehicleList"></ul>
-      <div id="vehicleMsg" class="muted"></div>
-    </div>
-  </section>
-
-  <!-- ================= MILEAGE ================= -->
-  <section id="mileageView" class="card stack hidden">
-    <h1 class="page-title">Mileage</h1>
-
-    <div class="dayBar">
-      <div class="dayBarLeft">
-        <button id="mileagePrev" class="secondary miniBtn">◀</button>
-        <button id="mileageNext" class="secondary miniBtn">▶</button>
-        <input id="mileageDatePicker" class="datePick" type="date" />
-      </div>
-      <button id="mileageBack" class="secondary miniBtn">Main Menu</button>
-    </div>
-
-    <label for="mileageVehicleSelect">Vehicle</label>
-    <select id="mileageVehicleSelect"></select>
-
-    <div class="row3">
-      <div class="stack">
-        <label for="mileageStart">Start mileage</label>
-        <input id="mileageStart" inputmode="decimal" placeholder="e.g. 10234.5" />
-      </div>
-      <div class="stack">
-        <label for="mileageEnd">End mileage</label>
-        <input id="mileageEnd" inputmode="decimal" placeholder="e.g. 10310.2" />
-      </div>
-      <div class="stack">
-        <label>Total</label>
-        <input id="mileageTotal" disabled />
-      </div>
-    </div>
-
-    <label for="mileageNotes">Notes (optional)</label>
-    <textarea id="mileageNotes" placeholder="Anything worth noting..."></textarea>
+    <h1 class="page-title">Working Hours Tracker</h1>
 
     <div class="row">
-      <button id="btnSaveMileage">Save</button>
-      <button id="btnDeleteMileage" class="secondary">Delete entry</button>
+      <button id="btnCompanies" class="secondary">Manage companies</button>
+      <button id="btnLogout" class="dangerBtn">Log Out</button>
     </div>
 
-    <h3 class="page-title" style="margin-top:10px;">Logs for selected date</h3>
-    <ul id="mileageList"></ul>
-    <div id="mileageMsg" class="muted"></div>
+    <div id="menuMsg" class="muted"></div>
+
+    <div class="menuGrid" id="menuGrid">
+      <button id="goMonthly" class="menuTile">Monthly summary</button>
+      <!-- company tiles injected here -->
+    </div>
   </section>
 
-  <!-- Supabase MUST load BEFORE app.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js"></script>
+  <!-- ================= COMPANIES ================= -->
+  <section id="companiesView" class="card stack hidden">
+    <h1 class="page-title">Companies</h1>
 
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./sw.js").catch(console.error);
-      });
-    }
-  </script>
+    <div class="dayBar">
+      <div class="dayBarLeft">
+        <span class="badge">Add or edit companies</span>
+      </div>
+      <button id="companiesBack" class="secondary miniBtn">Main Menu</button>
+    </div>
 
-</body>
-</html>
+    <input id="companyId" type="hidden" />
+
+    <label for="companyName">Company name</label>
+    <input id="companyName" placeholder="e.g. Evri" />
+
+    <div class="row">
+      <label class="checkRow"><input id="cfgMileage" type="checkbox" checked /> Mileage</label>
+      <label class="checkRow"><input id="cfgParcels" type="checkbox" checked /> Parcels</label>
+      <label class="checkRow"><input id="cfgStops" type="checkbox" checked /> Stops</label>
+    </div>
+
+    <div class="row">
+      <label class="checkRow"><input id="cfgPay" type="checkbox" checked /> Pay fields</label>
+      <label class="checkRow"><input id="cfgPhotos" type="checkbox" checked /> Photos</label>
+      <div></div>
+    </div>
+
+    <div class="row">
+      <button id="btnSaveCompany">Save company</button>
+      <button id="btnClearCompany" class="secondary">Clear</button>
+    </div>
+
+    <h3 class="sectionTitle">Your companies</h3>
+    <ul id="companyList"></ul>
+    <div id="companyMsg" class="muted"></div>
+  </section>
+
+  <!-- ================= MONTHLY SUMMARY ================= -->
+  <section id="monthlyView" class="card stack hidden">
+    <h1 class="page-title">Monthly summary</h1>
+
+    <div class="dayBar">
+      <div class="dayBarLeft">
+        <button id="monthPrev" class="secondary miniBtn">◀</button>
+        <span id="monthLabel" class="badge"></span>
+        <button id="monthNext" class="secondary miniBtn">▶</button>
+      </div>
+      <button id="monthlyBack" class="secondary miniBtn">Main Menu</button>
+    </div>
+
+    <div class="kpiGrid">
+      <div class="kpi"><div class="k">Shifts</div><div id="kpiShifts" class="v">—</div></div>
+      <div class="kpi"><div class="k">Hours</div><div id="kpiHours" class="v">—</div></div>
+      <div class="kpi"><div class="k">Mileage</div><div id="kpiMileage" class="v">—</div></div>
+      <div class="kpi"><div class="k">Est. Pay</div><div id="kpiPay" class="v">—</div></div>
+    </div>
+
+    <div class="muted">Starter page — we’ll add charts & breakdowns later.</div>
+
+    <h3 class="sectionTitle">Shifts in month</h3>
+    <ul id="monthShiftList"></ul>
+    <div id="monthMsg" class="muted"></div>
+  </section>
+
+  <!-- ================= COMPANY (SHIFT) ================= -->
+  <section id="companyView" class="card stack hidden">
+    <h1 id="companyTitle" class="page-title">Company</h1>
+
+    <div class="dayBar">
+      <div class="dayBarLeft">
+        <button id="shiftPrev" class="secondary miniBtn">◀</button>
+        <button id="shiftNext" class="secondary miniBtn">▶</button>
+        <input id="shiftDatePicker" class="datePick" type="date" />
+      </div>
+      <button id="companyBack" class="secondary miniBtn">Main Menu</button>
+    </div>
+
+    <div class="row">
+      <button id="btnStartShift">Start shift (now)</button>
+      <button id="btnEndShift" class="dangerBtn">End shift (now)</button>
+    </div>
+
+    <div class="row">
+      <div class="stack">
+        <label for="startTime">Start time</label>
+        <input id="startTime" type="datetime-local" />
+      </div>
+      <div class="stack">
+        <label for="endTime">End time</label>
+        <input id="endTime" type="datetime-local" />
+      </div>
+    </div>
+
+    <div class="badgeRow">
+      <span class="badge">Hours: <span id="hoursBadge">—</span></span>
+      <span class="badge" id="mileageBadgeWrap">Mileage: <span id="mileageBadge">—</span></span>
+      <span class="badge" id="payRateBadgeWrap">Avg £/hr: <span id="payRateBadge">—</span></span>
+    </div>
+
+    <!-- Mileage block -->
+    <div id="mileageBlock" class="stack">
+      <h3 class="sectionTitle">Mileage</h3>
+      <div class="row3">
+        <div class="stack">
+          <label for="startMileage">Start mileage</label>
+          <input id="startMileage" inputmode="decimal" placeholder="e.g. 10234.5" />
+        </div>
+        <div class="stack">
+          <label for="endMileage">End mileage</label>
+          <input id="endMileage" inputmode="decimal" placeholder="e.g. 10310.2" />
+        </div>
+        <div class="sta
