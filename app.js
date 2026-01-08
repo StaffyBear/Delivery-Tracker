@@ -5,9 +5,9 @@
  **************************************************/
 
 // ✅ Fill these in:
-const SITE_URL = "PASTE_YOUR_GITHUB_PAGES_URL_HERE"; // e.g. https://staffybear.github.io/Working-Hours-Tracker/
-const SUPABASE_URL = "PASTE_YOUR_SUPABASE_URL_HERE";
-const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY_HERE";
+const SITE_URL = "https://staffybear.github.io/Shift-Tracker/"; // e.g. https://staffybear.github.io/Working-Hours-Tracker/
+const SUPABASE_URL = "https://qntswiybgqijbbhpzpas.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_JW0SqP8JbZFsgVfpPevHrg__FeyrIgq";
 
 // Optional: invite code gate for registration
 const INVITE_CODE_REQUIRED = "1006";
